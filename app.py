@@ -2,6 +2,7 @@ import streamlit as st
 from google import genai
 from dotenv import load_dotenv
 import os
+import time
 import PyPDF2
 from datetime import datetime
 
@@ -205,18 +206,37 @@ if client is None:
 
 def generate_ai_response(prompt):
 
-    try:
+    max_retries = 3
 
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=prompt
-        )
+    for attempt in range(max_retries):
 
-        return response.text
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=prompt
+            )
 
-    except Exception as e:
+            return response.text
 
-        return f"Error: {str(e)}"
+        except Exception as e:
+
+            error_message = str(e)
+
+            if "503" in error_message or "UNAVAILABLE" in error_message:
+
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    time.sleep(wait_time)
+                    continue
+
+                return (
+                    "⚠️ Gemini AI is temporarily busy. "
+                    "Please try again after a few seconds."
+                )
+
+            return f"Error: {error_message}"
+
+    return "⚠️ Something went wrong. Please try again."
 
 
 # =========================================================
